@@ -80,7 +80,8 @@ tasks.javadoc {
 
 publishing {
     publications {
-        withType<MavenPublication> {
+        create<MavenPublication>("Maven") {
+//        withType<MavenPublication> {
             from(components["java"])
             groupId = mavenGroupId
             artifactId = mavenArtifactId
