@@ -1,4 +1,4 @@
-package src.testFixtures.java.brava.either;
+package brava.either;
 
 import brava.core.Either;
 import brava.core.Which;

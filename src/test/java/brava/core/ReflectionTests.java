@@ -1,4 +1,4 @@
-package src.test.java.brava.core;
+package brava.core;
 
 import brava.core.exceptions.UncheckedReflectionException;
 import org.assertj.core.api.Assertions;

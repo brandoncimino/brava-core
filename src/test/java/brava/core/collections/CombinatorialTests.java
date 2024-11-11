@@ -1,4 +1,4 @@
-package src.test.java.brava.core.collections;
+package brava.core.collections;
 
 import brava.core.Records;
 import brava.core.tuples.*;

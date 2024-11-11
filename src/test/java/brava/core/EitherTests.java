@@ -1,4 +1,4 @@
-package src.test.java.brava.core;
+package brava.core;
 
 import brava.core.collections.Combinatorial;
 import brava.either.EitherAssertions;

@@ -1,4 +1,4 @@
-package src.test.java.brava.core.tuples;
+package brava.core.tuples;
 
 import java.util.function.Function;
 

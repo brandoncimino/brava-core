@@ -1,4 +1,4 @@
-package src.test.java.brava.core.tuples;
+package brava.core.tuples;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;

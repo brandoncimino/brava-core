@@ -1,4 +1,4 @@
-package src.test.java.brava.core;
+package brava.core;
 
 import com.google.common.base.Preconditions;
 import org.jetbrains.annotations.Contract;

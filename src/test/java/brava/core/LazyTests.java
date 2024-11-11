@@ -1,4 +1,4 @@
-package src.test.java.brava.core;
+package brava.core;
 
 import org.assertj.core.api.Assertions;
 import org.jetbrains.annotations.Nullable;

@@ -1,4 +1,4 @@
-package src.test.java.brava.core.functional;
+package brava.core.functional;
 
 import brava.core.Unchecked;
 import com.google.common.reflect.TypeToken;
