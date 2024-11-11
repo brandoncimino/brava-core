@@ -80,6 +80,8 @@ tasks.javadoc {
 
 publishing {
     publications {
+        // TODO: Dunno if this "MavenPublication" thing exists or not. 
+        //       If it does, then we'd want to use `withType()`, if not, then we'd want to use `create()`...
         create<MavenPublication>("Maven") {
 //        withType<MavenPublication> {
             from(components["java"])
@@ -136,6 +138,7 @@ jreleaser {
     }
     deploy {
         maven {
+            active = org.jreleaser.model.Active.ALWAYS
             mavenCentral {
                 create("sonatype") {
                     active = org.jreleaser.model.Active.ALWAYS
