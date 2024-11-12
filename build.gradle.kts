@@ -129,7 +129,8 @@ publishing {
 }
 
 jreleaser {
-    gitRootSearch = true
+    // I think this is only necessary for multi-module projects...
+    // gitRootSearch = true
     project.copyright = "Brandon Cimino"
     dryrun = false
     signing {
