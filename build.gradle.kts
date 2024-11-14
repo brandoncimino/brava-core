@@ -6,25 +6,30 @@ plugins {
     id("java-test-fixtures")
     id("maven-publish")
     // TODO: Inclusion of `jreleaser` seems to cause the https://docs.gradle.org/8.5/userguide/upgrading_version_8.html#deprecated_access_to_conventions warning. Need to look up and see if this is a known issue, which it better be if `jrleaser` is a real thing.
-    id("org.jreleaser").version("1.14.0")
+    id("org.jreleaser").version("1.15.0")
     id("signing")
 }
 
 
-/**
- * 📎 On the "Maven Central" website (which is actually called "sonatype"?),
- * the `groupId` is referred to as the `namespace`: https://central.sonatype.com/publishing/namespaces
- */
 val githubUsername = "brandoncimino"
+
+/**
+ * 📎 On the "Maven Central" website _(which is actually called "sonatype", or sometimes "nexus")_,
+ *    the `groupId` is referred to as the "[namespace](https://central.sonatype.com/publishing/namespaces)". 
+ */
 val mavenGroupId = "io.github.$githubUsername"
-val mavenArtifactId = "brave-core"
+val mavenArtifactId = "brava-core"
 val mavenDescription = "Brandon's generic Java utilities."
 
+val repoName = mavenArtifactId
 val githubProfile = "https://github.com/$githubUsername"
-val githubRepo = "https://github.com/$githubUsername/brava-core"
+val githubRepo = "https://github.com/$githubUsername/$repoName"
 
 group = "brava"
-version = "1.0-SNAPSHOT"
+// ⚠️ The version number secretly controls build logic if it ends in `-SNAPSHOT`: 
+//     - https://github.com/jreleaser/jreleaser/discussions/1685
+//     - https://github.com/jreleaser/jreleaser/discussions/1565
+version = "1.0.0"
 
 repositories {
     mavenCentral()
@@ -80,21 +85,31 @@ tasks.javadoc {
 
 publishing {
     publications {
-        // TODO: Dunno if this "MavenPublication" thing exists or not. 
-        //       If it does, then we'd want to use `withType()`, if not, then we'd want to use `create()`...
         create<MavenPublication>("Maven") {
-//        withType<MavenPublication> {
-            from(components["java"])
+            // Inspired by: https://stackoverflow.com/a/69891314/18494923
+            val javaComponent = components["java"] as AdhocComponentWithVariants
+            from(javaComponent)
+
             groupId = mavenGroupId
             artifactId = mavenArtifactId
             // 📎 `description` and `url` are *required* by Maven Central: https://central.sonatype.org/publish/requirements/#project-name-description-and-url
             // That may or may not actually refer to the `pom` object below...
             // Either way, there is no `url` property here, so...I guess I won't set it 🤷‍♀️
             description = mavenDescription
+
+            // The existence of `testFixtures` breaks JReleaser. See: https://stackoverflow.com/a/69891314/18494923
+            // TODO: Test this on newer versions of JReleaser.
+            javaComponent.withVariantsFromConfiguration(configurations["testFixturesApiElements"]) {
+                skip()
+            }
+            javaComponent.withVariantsFromConfiguration(configurations["testFixturesRuntimeElements"]) {
+                skip()
+            }
+
             // This looks to basically be a 1:1 representation of a maven `pom.xml` file, but using Kotlin object initializers. 
             pom {
                 packaging = "jar"
-                name = "core"
+                name = mavenArtifactId
                 // 📎 `description` and `url` are *required* by Maven Central: https://central.sonatype.org/publish/requirements/#project-name-description-and-url
                 description = mavenDescription
                 url = githubRepo
@@ -114,8 +129,8 @@ publishing {
                     }
                 }
                 scm {
-                    connection = "scm:git:https://github.com/brandoncimino/brava.git"
-                    developerConnection = "scm:git:ssh://github.com/brandoncimino/brava.git"
+                    connection = "scm:git:${githubRepo}.git"
+                    developerConnection = "scm:git:ssh://github.com/$githubUsername/$repoName.git"
                     url = githubRepo
                 }
             }
@@ -129,8 +144,6 @@ publishing {
 }
 
 jreleaser {
-    // I think this is only necessary for multi-module projects...
-    // gitRootSearch = true
     project.copyright = "Brandon Cimino"
     dryrun = false
     signing {
@@ -141,10 +154,15 @@ jreleaser {
         maven {
             active = org.jreleaser.model.Active.ALWAYS
             mavenCentral {
-                create("sonatype") {
+                create("sonatype" /* I think this is an arbitrary name 🤔 */) {
                     active = org.jreleaser.model.Active.ALWAYS
                     url = "https://central.sonatype.com/api/v1/publisher"
-                    stagingRepository("target/staging-deploy")
+                    // ⚠️ This is incorrectly shown in tutorials as `target/staging-deploy`, but `target` is the output folder of maven, NOT gradle!
+                    //    Supporting evidence: https://github.com/jreleaser/jreleaser/discussions/1752
+                    stagingRepository("build/staging-deploy")
+
+                    applyMavenCentralRules = true
+                    namespace = mavenGroupId
                 }
             }
         }
