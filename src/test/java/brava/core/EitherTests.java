@@ -10,12 +10,11 @@ import org.assertj.core.api.WithAssertions;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Stream;
 
 class EitherTests implements WithAssertions {
@@ -23,28 +22,28 @@ class EitherTests implements WithAssertions {
     @Test
     void either_rejectsBoth() {
         //noinspection DataFlowIssue
-        assertThatThrownBy(() -> Either.of(1, "x"))
+        assertThatThrownBy(() -> Either.ofNullable(1, "x"))
               .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void either_rejectsNeither() {
         //noinspection DataFlowIssue
-        assertThatThrownBy(() -> Either.of(null, null))
+        assertThatThrownBy(() -> Either.ofNullable(null, null))
               .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void either_acceptsA() {
         var a = UUID.randomUUID();
-        var either = Either.of(a, null);
+        var either = Either.ofNullable(a, null);
         EitherAssertions.validate(either, a, Which.A);
     }
 
     @Test
     void either_acceptsB() {
         var b = UUID.randomUUID();
-        var either = Either.of(null, b);
+        var either = Either.ofNullable(null, b);
         EitherAssertions.validate(either, b, Which.B);
     }
 
@@ -286,5 +285,67 @@ class EitherTests implements WithAssertions {
                   .as("via Either.areEqual(left, right, Equivalence, Equivalence)")
                   .isFalse();
         });
+    }
+    
+    @ParameterizedTest
+    @EnumSource
+    void givenEither_whenMapWhatIHave_thenMapperIsInvoked(Which hasWhich) {
+        var either = EitherAssertions.createEither(hasWhich, "yolo");
+        var expectedMappedValue = UUID.randomUUID();
+
+        var mapped = switch (either.hasWhich()) {
+            case A -> either.mapA(a -> expectedMappedValue);
+            case B -> either.mapB(b -> expectedMappedValue);
+        };
+
+        EitherAssertions.validate(mapped, expectedMappedValue, either.hasWhich());
+    }
+    
+    @ParameterizedTest
+    @EnumSource
+    void givenEither_whenMapWhatIHaveNot_thenMapperIsNotInvoked(Which hasWhich){
+        var either = EitherAssertions.createEither(hasWhich, "yolo");
+
+        Either<String, String> mapped = switch (either.hasWhich()) {
+            case A -> either.mapB(b -> Assertions.fail("Should not have been invoked"));
+            case B -> either.mapA(b -> Assertions.fail("Should not have been invoked"));
+        };
+
+        EitherAssertions.validate(mapped, either.getValue(), either.hasWhich());
+    }
+    
+    static Stream<Arguments> whichCombos(){
+        return Combinatorial.cartesianProduct(
+              EnumSet.allOf(Which.class),
+              EnumSet.allOf(Which.class)
+        ).map(combo -> Arguments.of(combo.toArray()));
+    }
+    
+    @ParameterizedTest
+    @MethodSource("whichCombos")
+    void givenEither_whenFlatMapWhatIHave_thenMapperIsInvoked(Which hasWhich, Which mapperReturnsWhich){
+        var either = EitherAssertions.createEither(hasWhich, UUID.randomUUID());
+        var expectedMappedValue = UUID.randomUUID();
+
+        var mapped = switch(hasWhich) {
+            case A -> either.flatMapA(a -> EitherAssertions.createEither(mapperReturnsWhich, expectedMappedValue));
+            case B -> either.flatMapB(b -> EitherAssertions.createEither(mapperReturnsWhich, expectedMappedValue));
+        };
+        
+        EitherAssertions.validate(mapped, expectedMappedValue, mapperReturnsWhich);
+    }
+    
+    @ParameterizedTest
+    @EnumSource
+    void givenEither_whenFlatMapWhatIHaveNot_thenMapperIsNotInvoked(Which hasWhich) {
+        var value = "yolo";
+        var either = EitherAssertions.createEither(hasWhich, value);
+        
+        var mapped = switch(hasWhich) {
+            case A -> either.flatMapB(b -> Assertions.fail("Should not have been invoked!"));
+            case B -> either.flatMapA(a -> Assertions.fail("Should not have been invoked!"));
+        };
+        
+        EitherAssertions.validate(mapped, value, hasWhich);
     }
 }

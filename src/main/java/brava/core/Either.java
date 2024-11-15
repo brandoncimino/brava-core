@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -65,6 +66,8 @@ public final class Either<A, B> {
         return hasA ? Which.A : Which.B;
     }
 
+    //region Helpers
+    
     @SuppressWarnings("unchecked")
     @NotNull
     @Contract(pure = true)
@@ -79,6 +82,14 @@ public final class Either<A, B> {
         return (B) value;
     }
 
+    @NotNull
+    @Contract(value = "null -> null; !null -> !null", pure = true)
+    static <A, B> Either<A, B> widen(Either<? extends A, ? extends B> either) {
+        return Unchecked.cast(either);
+    }
+    
+    //endregion
+
     /**
      * @return my {@link A} value
      * @throws NoSuchElementException I actually {@link #hasB()}
@@ -89,7 +100,7 @@ public final class Either<A, B> {
     public A getA() {
         if (hasB()) {
             throw new NoSuchElementException(
-                String.format("Can't get 🅰 because this %s contains 🅱 (%s)!", getClass().getSimpleName(), value));
+                  String.format("Can't get 🅰 because this %s contains 🅱 (%s)!", getClass().getSimpleName(), value));
         }
 
         return unsafeA();
@@ -105,7 +116,7 @@ public final class Either<A, B> {
     public B getB() {
         if (hasA()) {
             throw new NoSuchElementException(
-                String.format("Can't get 🅱 because this %s contains 🅰 (%s)!", getClass().getSimpleName(), value));
+                  String.format("Can't get 🅱 because this %s contains 🅰 (%s)!", getClass().getSimpleName(), value));
         }
 
         return unsafeB();
@@ -162,6 +173,19 @@ public final class Either<A, B> {
         }
     }
 
+    /**
+     * @return a {@link Stream#of(B)}, <i>if</i> I {@link #hasB()} ()}
+     * @apiNote This method is provided to make {@link Stream#flatMap}ping easier:
+     * <pre>{@code
+     *     public static int getTotalPropellers(List<Either<Car, Boat>> vehicles){
+     *         return vehicles.stream()
+     *             .flatMap(Either::streamB)
+     *             .mapToInt(Boat::getPropellerCount)
+     *             .sum();
+     *     }
+     * }</pre>
+     * @see #tryGetB()
+     */
     @NotNull
     @Contract(pure = true)
     public Stream<@NotNull B> streamB() {
@@ -194,12 +218,16 @@ public final class Either<A, B> {
     @NotNull
     @Contract(value = "null, null -> fail; !null, !null -> fail", pure = true)
     @SuppressWarnings("java:S2637" /* Sonar's nullability analysis just isn't good enough */)
-    public static <A, B> Either<@NotNull A, @NotNull B> of(@Nullable A a, @Nullable B b) {
+    public static <A, B> Either<@NotNull A, @NotNull B> ofNullable(@Nullable A a, @Nullable B b) {
         final var aMissing = a == null;
         final var bMissing = b == null;
 
         if (aMissing == bMissing) {
-            throw new IllegalArgumentException(String.format("You must provide EITHER 🅰 OR 🅱!%n🅰 %s%n🅱 %s", a, b));
+            throw new IllegalArgumentException("""
+                  You must provide EITHER a non-null 🅰 OR 🅱!
+                    🅰 %s
+                    🅱 %s
+                  """.formatted(a, b));
         }
 
         return bMissing ? ofA(a) : ofB(b);
@@ -237,7 +265,7 @@ public final class Either<A, B> {
     @SafeVarargs
     @NotNull
     public static <T, E extends Throwable> Either<@NotNull T, @NotNull E> resultOf(
-          @NotNull Unchecked.Supplier<@NotNull T> supplier,
+          @NotNull Unchecked.Supplier<? extends @NotNull T> supplier,
           @NotNull Class<? extends E> catching,
           @NotNull Class<? extends E>... alsoCatching
     ) {
@@ -259,7 +287,7 @@ public final class Either<A, B> {
             }
         }
 
-        return Either.of(result, exc);
+        return Either.ofNullable(result, exc);
     }
 
     /**
@@ -270,7 +298,7 @@ public final class Either<A, B> {
      * @throws IllegalArgumentException if the {@code supplier} returns null
      * @implSpec Only exceptions raised <i>inside</i> of {@link Callable#call()} should be caught.
      */
-    public static <T> @NotNull Either<@NotNull T, @NotNull Throwable> resultOf(@NotNull Unchecked.Supplier<@NotNull T> supplier) {
+    public static <T> @NotNull Either<@NotNull T, @NotNull Throwable> resultOf(@NotNull Unchecked.Supplier<? extends @NotNull T> supplier) {
         return resultOf(supplier, Throwable.class);
     }
 
@@ -286,7 +314,7 @@ public final class Either<A, B> {
     }
 
     //region Transforming
-    
+
     /**
      * Produces a value of {@link T} from my {@link #value}, whether I {@link #hasA()} or {@link #hasB()}.
      *
@@ -294,9 +322,13 @@ public final class Either<A, B> {
      * @param ifB if I {@link #hasB()}, transform it with this
      * @param <T> the output type
      * @return the resulting {@link T} value
+     * @apiNote The name "handle" corresponds to {@link java.util.concurrent.CompletableFuture#handle(BiFunction)}.
      * @see #map(Function, Function)
      */
-    public <T> T handle(@NotNull Function<@NotNull A, T> ifA, @NotNull Function<@NotNull B, T> ifB) {
+    public <T> T handle(
+          @NotNull Function<? super @NotNull A, ? extends T> ifA,
+          @NotNull Function<? super @NotNull B, ? extends T> ifB
+    ) {
         if (hasA) {
             return ifA.apply(unsafeA());
         } else {
@@ -314,7 +346,7 @@ public final class Either<A, B> {
      * @param ifB if I {@link #hasB()}, this function transforms it into {@link A}
      * @return an {@link A} value
      */
-    public A toA(@NotNull Function<? super B, ? extends A> ifB) {
+    public A toA(@NotNull Function<? super @NotNull B, ? extends A> ifB) {
         if (hasA) {
             return unsafeA();
         }
@@ -322,7 +354,17 @@ public final class Either<A, B> {
         return ifB.apply(unsafeB());
     }
 
-    public B toB(@NotNull Function<A, B> ifA) {
+    /**
+     * If I:
+     * <ul>
+     *     <li>{@link #hasA()}, apply {@code ifA} to it</li>
+     *     <li>{@link #hasB()}, return it</li>
+     * </ul>
+     *
+     * @param ifA if I {@link #hasA()}, this function transforms it into {@link B}
+     * @return a {@link B} value
+     */
+    public B toB(@NotNull Function<? super @NotNull A, ? extends B> ifA) {
         if (hasA) {
             return ifA.apply(unsafeA());
         }
@@ -340,11 +382,128 @@ public final class Either<A, B> {
      * @return {@link Either}&gt;{@link A2}, {@link B2}>
      * @see #handle(Function, Function)
      */
-    public <A2, B2> Either<@NotNull A2, @NotNull B2> map(@NotNull Function<@NotNull A, @NotNull A2> ifA, @NotNull Function<@NotNull B, @NotNull B2> ifB) {
+    public <A2, B2> Either<@NotNull A2, @NotNull B2> map(
+          @NotNull Function<? super @NotNull A, ? extends @NotNull A2> ifA,
+          @NotNull Function<? super @NotNull B, ? extends @NotNull B2> ifB
+    ) {
         if (hasA) {
             return Either.ofA(ifA.apply(unsafeA()));
         } else {
             return Either.ofB(ifB.apply(unsafeB()));
+        }
+    }
+
+    /**
+     * If I:
+     * <ul>
+     *     <li>{@link #hasA()}, transform it with {@code ifA}</li>
+     *     <li>{@link #hasB()}, return it</li>
+     * </ul>
+     *
+     * @param ifA  if I {@link #hasA()}, this function transforms it to {@link A2}
+     * @param <A2> the new output type <i>if</i> I {@link #hasA()}
+     * @return {@link Either}&lt;{@link A2}, {@link B}&gt;
+     * @see #map(Function, Function)
+     */
+    public <A2> Either<A2, B> mapA(
+          @NotNull Function<? super @NotNull A, ? extends @NotNull A2> ifA
+    ) {
+        if (hasA) {
+            return Either.ofA(ifA.apply(unsafeA()));
+        } else {
+            return Unchecked.cast(this);
+        }
+    }
+
+    /**
+     * If I:
+     * <ul>
+     *     <li>{@link #hasA()}, return it</li>
+     *     <li>{@link #hasB()}, transform it with {@code ifB}</li>
+     * </ul>
+     *
+     * @param ifB  if I {@link #hasA()}, this function transforms it to {@link B2}
+     * @param <B2> the new output type <i>if</i> I {@link #hasB()}
+     * @return {@link Either}&lt;{@link B}, {@link B2}&gt;
+     * @see #map(Function, Function)
+     */
+    public <B2> Either<A, B2> mapB(
+          @NotNull Function<? super @NotNull B, ? extends @NotNull B2> ifB
+    ) {
+        if (hasA) {
+            return Unchecked.cast(this);
+        } else {
+            return Either.ofB(ifB.apply(unsafeB()));
+        }
+    }
+
+    /**
+     * Similar to {@link #mapA(Function)}, but using a function that would return another {@link Either} without nesting them inside of other.
+     *
+     * <h2>Examples</h2>
+     * This method is particularly useful for chaining {@link Either}-returning methods together, similarly to {@link Optional#or(Supplier)}:
+     *
+     * <pre>{@code
+     * abstract Either<Response, Throwable> trySendRequest(Request request);
+     *
+     * abstract Either<DatabaseRow, Throwable> trySaveData(Response response);
+     *
+     * public Either<DatabaseRow, Throwable> tryProcessRequest(Request request) {
+     *     return trySendRequest(request)        // Either<Response, Throwable>
+     *         .flatMapA(this::trySaveResponse)  // Either<DatabaseRow, Throwable>
+     * }
+     *
+     * }</pre>
+     * 
+     * ⚠️ Note that in the cases where the un-mapped types <b>differ, but share a common supertype</b>, you will need to
+     * use {@link #handle(Function, Function)} instead, passing {@link Either#ofA(Object)} or {@link Either#ofB(Object)} as the other mapping function:
+     * 
+     * <pre>{@code
+     * abstract Either<String, ArithmeticException> tryGetFirst(String fullName);
+     * 
+     * abstract Either<String, NoSuchElementException> tryGetLast(String fullName);
+     * 
+     * public Either<String, ? extends Throwable> tryProcessName(String fullName){
+     *     return tryGetFirst(fullName)
+     *          .flatMapA(this::tryGetLast); // ❌ Does not compile! 
+     *                                       // reason: no instance(s) of type variable(s) exist so that NoSuchElementException conforms to ArithmeticException
+     * 
+     *     return tryGetFirst(fullName)      
+     *          .handle(                     
+     *              this::tryGetLast,        // Either<String, NoSuchElementException>
+     *              Either::ofB              // Either<String, ArithmeticException>
+     *          );                           // ✅ Returns the common supertype of the two possibilities:
+     *                                       //    Either<String, ? extends RuntimeException>
+     * }
+     * }</pre>
+     *
+     * @param ifA if I {@link #hasA()}, transform it with this
+     * @return {@link Either}&lt;{@link A2}, {@link B}&gt;
+     * @apiNote This method is analogous to {@link Optional#or(Supplier)}.
+     */
+    public <A2> Either<A2, B> flatMapA(Function<? super @NotNull A, ? extends Either<? extends A2, ? extends @NotNull B>> ifA) {
+        if (hasA) {
+            return widen(ifA.apply(unsafeA()));
+        } else {
+            return Unchecked.cast(this);
+        }
+    }
+
+    /**
+     * Similar to {@link #mapB(Function)}, but using a function that would return another {@link Either} without nesting them inside of each other.
+     * 
+     * <h2>Examples</h2>
+     * See the javadocs for {@link #flatMapA(Function)}.
+     *
+     * @param ifB if I {@link #hasB()}, transform it with this
+     * @return {@link Either}&lt;{@link A}, {@link B2}&gt;
+     * @apiNote This method is analogous to {@link Optional#or(Supplier)}.
+     */
+    public <B2> Either<A, B2> flatMapB(Function<? super @NotNull B, ? extends Either<A, ? extends @NotNull B2>> ifB) {
+        if (hasA) {
+            return Unchecked.cast(this);
+        } else {
+            return widen(ifB.apply(unsafeB()));
         }
     }
 
