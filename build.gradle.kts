@@ -29,7 +29,7 @@ group = "brava"
 // ⚠️ The version number secretly controls build logic if it ends in `-SNAPSHOT`: 
 //     - https://github.com/jreleaser/jreleaser/discussions/1685
 //     - https://github.com/jreleaser/jreleaser/discussions/1565
-version = "1.0.0"
+version = "2.0.0"
 
 repositories {
     mavenCentral()
