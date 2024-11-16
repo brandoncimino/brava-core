@@ -1,14 +1,15 @@
 package brava.core.collections;
 
 import brava.core.Either;
-import brava.core.Unchecked;
-import com.sun.net.httpserver.Authenticator;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.util.Lists;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 

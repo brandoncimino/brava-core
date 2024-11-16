@@ -80,7 +80,7 @@ tasks.javadoc {
     //    However, some of these warnings are just objectively incorrect, the most notable being
     //    the `reference not found` warning issued when you use a type parameter in a `@link`, such as `{@link Function#apply(IN)}`.
     // 📎 Some people reference another option, `quiet` / `-quiet`, but it doesn't seem to do anything.
-    (options as CoreJavadocOptions).addBooleanOption("Xdoclint:none", true);
+    (options as CoreJavadocOptions).addBooleanOption("Xdoclint:none", true)
 }
 
 publishing {
