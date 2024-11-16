@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2024-11-16
+
+### Changed
+
+- `Either.of(a, b)` to `Either.ofNullable(a, b)` to make it more easily distinguished from the more commonly used `ofA(a)` and `ofB(b)` _(especially for code-completion tools)_.
+
+### Removed
+
+- Public access to `CollectionHelpers` _(it was already annotated as `@ApiStatus.InternalOnly`, but it didn't need to be `public`)_.
+
 ## [1.0.0] - 2024-11-13
 
 🎊 Initial release!

@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 
 @ApiStatus.Internal
-public class CollectionHelpers {
+class CollectionHelpers {
     /**
      * An implementation for {@link Collection#toArray(Object[])}.
      */
