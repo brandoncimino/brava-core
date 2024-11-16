@@ -1,0 +1,149 @@
+= brava-core
+
+:tip-caption: 📎
+:note-caption: 📝
+:warning-caption: ⚠️
+:caution-caption: ‼️
+:important-caption: ℹ️
+
+:namespace: link:https://central.sonatype.com/publishing/namespaces[namespace]
+:jreleaser-configs: link:https://jreleaser.org/guide/latest/reference/environment.html[JReleaser configs]
+
+A single-module Java project with just the lowest-level Java stuff I want, as opposed to the multi-module `brava` project for which I cannot get jreleaser to work.
+
+== Configuration Cheat-Sheet
+
+[#_jreleaser_gpg_passphrase]
+=== `JRELEASER_GPG_PASSPHRASE`
+
+[horizontal]
+Created via:: <<_creating_gpg_keys>>
+Retrieved via:: Human memory _(or a password manager)_
+
+[#_jreleaser_gpg_public_key]
+=== `JRELEASER_GPG_PUBLIC_KEY`
+
+[horizontal]
+Created via:: <<_creating_gpg_keys>>
+
+Retrieved via::
++
+[source,powershell]
+----
+gpg --armor --export $GpgKeyId | Join-String -Separator "`n"
+----
+link:BuildFunctions.psm1[] function:: `Get-GpgPublicKey`
+
+[#_jreleaser_gpg_secret_key]
+=== `JRELEASER_GPG_SECRET_KEY`
+
+[horizontal]
+Created via:: <<_creating_gpg_keys>>
+Retrieved via::
++
+[source,powershell]
+gpg --armor --export-secret-keys $gpgKeyId | Join-String -Separator "`n"
+link:BuildFunctions.psm1[] function:: `Get-GpgSecretKey`
+
+=== `JRELEASER_GITHUB_TOKEN`
+
+[horizontal]
+Created via:: `gh auth login`
+Retrieved via:: `gh auth token`
+
+[#_jreleaser_mavencentral_username]
+=== `JRELEASER_MAVENCENTRAL_USERNAME`
+
+[horizontal]
+Created via:: <<_creating_maven_central_credentials>>
+Retrieved via:: Human memory _(or a password manager)_
+
+[#_jreleaser_mavencentral_token]
+=== `JRELEASER_MAVENCENTRAL_TOKEN`
+
+[horizontal]
+Created via:: <<_creating_maven_central_credentials>>
+Retrieved via:: Human memory _(or a password manager)_
+
+[#_creating_gpg_keys]
+== Creating "GPG Key(s)"
+
+[NOTE]
+====
+"GPG", "GnuPG", and "GNU Privacy Guard" all refer to the command line tool `gpg`.
+
+They also refer to the same thing as "PGP", it looks like.
+====
+
+. Install the _(windows version of the)_ `gpg` command line tool from https://community.chocolatey.org/packages/Gpg4win[chocolatey]:
++
+[source,powershell]
+choco install gpg4win -a
+
+. Generate the so-called "GPG Key(s)":
++
+--
+[source,powershell]
+gpg --gen-key
+
+Entering your name and email _(which should probably be the same email as you use for Github, to be safe)_.
+--
+
+. Enter a "<<_jreleaser_gpg_passphrase, passphrase>>" _(henceforth referred to as 💬)_ in a popup application window.
+. From the output of the command, saved the "gpg key id", 🔐, which is displayed on the unlabelled line just under the one labelled `pub`.
++
+TIP: link:BuildFunctions.psm1[]'s function `Get-GpgKeyId` will also retrieve the value.
++
+[source,powershell]
+pub   ed25519 2024-07-22 [SC] [expires: 2027-07-22]
+      🔐
+uid                      Brandon Cimino <brandon.cimino@gmail.com>
+sub   cv25519 2024-07-22 [E] [expires: 2027-07-22]
+
+. "Export the key to a server" 🤷‍♀️
++
+[source,powershell]
+gpg --keyserver keyserver.ubuntu.com --send-keys ${🔐}
+
+📎 You can now set some {jreleaser-configs} based on your "gpg keys":
+
+- <<_jreleaser_gpg_public_key>>
+- <<_jreleaser_gpg_secret_key>>
+- <<_jreleaser_gpg_passphrase>>
+
+
+[#_creating_maven_central_credentials]
+== Creating "Maven Central credentials"
+
+.Beware of secret jargon
+[CAUTION] 
+====
+The Maven Central website has its own code words for many things:
+
+|===
+|Secret code |Actual
+
+|Nexus |Maven Central
+|Nexus2 |Maven Central
+|Sonatype |Maven Central
+|link:https://central.sonatype.com/publishing/namespaces[namespace]
+|Maven link:https://maven.apache.org/guides/mini/guide-naming-conventions.html[`groupId`]
+
+|===
+====
+
+. Go to https://central.sonatype.com.
+. Connect with your Github account.
++
+[WARNING] 
+====
+Your account should now include one "{namespace}", `io.github.${github username}`.
+
+*_This is actually your `groupId`!_*
+====
+. Go to https://central.sonatype.com/account.
+. Click "Generate User Token".
+. *{warning-caption} Save the XML output somewhere secure, like in a password manager!*
+. Set some {jreleaser-configs} based on the values from the XML output:
+    - <<_jreleaser_mavencentral_username>>: the `<username>` tag's content.
+    - <<_jreleaser_mavencentral_token>>: the `<password>` tag's content.
